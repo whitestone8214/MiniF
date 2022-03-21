@@ -1,5 +1,5 @@
 # Mini F
-Tiny F-Droid client
+Mini F-Droid client
 Version 0.0
 
 ## How to build
@@ -18,14 +18,14 @@ Version 0.0
 
 ## How to use
 
-1. Install Tiny F on your Android device
+1. Install Mini F on your Android device
 2. Download index-v1.jar on PC: https://f-droid.org/repo/index-v1.jar
 3. Connect your Android device to PC
 	1. Maybe you have to enable Developer Options and USB Debugging
 4. Run these on PC
 	1. `adb shell mkdir -p /sdcard/Android/data/whitestone8214.frontend.minif/files`
 	2. `adb push /path/to/index-v1.jar /sdcard/Android/data/whitestone8214.frontend.minif/files/`
-5. Launch Tiny F
+5. Launch Mini F
 6. Tap "Load" button on top of window and wait
 
 ## Note
