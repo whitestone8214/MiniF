@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-# Necessary values
+# Necessary value(s)
 _here="$(pwd)"
 _whereAndroidSDK="/external/0/android-app-development"
 _whereKeystore="${HOME}/keystore.jks"
@@ -11,12 +11,21 @@ _versionSDK="29"
 _versionToolchain="30.0.3"
 
 
+# Function(s)
+function clean() {
+	rm -rf classes.dex outlet proguard_options public_resources.xml sources-*.txt unfinished.apk finished.apk || return 1
+	for x in $(find . -name R.java); do
+		rm -f $x || return 1
+	done
+}
+
+
 # Initialize
 echo ":: Initialize"
-rm -rf classes.dex outlet proguard_options public_resources.xml sources-*.txt unfinished.apk finished.apk || exit 1
-for x in $(find . -name R.java); do
-	rm -f $x
-done
+clean || exit 1
+if (test "$1" = "justclean"); then
+	exit 0
+fi
 mkdir -p assets outlet || exit 1
 
 # R.java

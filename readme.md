@@ -1,6 +1,6 @@
 # Mini F
-Mini F-Droid client
-Version 0.0
+Tiny F-Droid client\
+Version 1.0
 
 ## How to build
 
@@ -26,7 +26,7 @@ Version 0.0
 	1. `adb shell mkdir -p /sdcard/Android/data/whitestone8214.frontend.minif/files`
 	2. `adb push /path/to/index-v1.jar /sdcard/Android/data/whitestone8214.frontend.minif/files/`
 5. Launch Mini F
-6. Tap "Load" button on top of window and wait
+6. Tap "Load" button on top of window and wait (For me it took about 10 minutes)
 
 ## Note
 
