@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0 (2022/03/30)
+
+1. Now Mini F stores list as files in /sdcard/Android/data/whitestone8214.frontend.minif/files/catalogue
+
 ## 1.0 (2022/03/22)
 
 1. Added changelog.md (This file)

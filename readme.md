@@ -1,6 +1,6 @@
 # Mini F
 Tiny F-Droid client\
-Version 1.0
+Version 2.0
 
 ## How to build
 
@@ -27,6 +27,7 @@ Version 1.0
 	2. `adb push /path/to/index-v1.jar /sdcard/Android/data/whitestone8214.frontend.minif/files/`
 5. Launch Mini F
 6. Tap "Load" button on top of window and wait (For me it took about 10 minutes)
+	1. After this is done, you can just tap "Previous 100" or "Next 100" on relaunch to see the list
 
 ## Note
 
