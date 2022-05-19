@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0 (2022/05/19)
+
+1. Rearranged the toolbar and buttons for app
+2. Now "About" shows dialog
+
 ## 2.0 (2022/03/30)
 
 1. Now Mini F stores list as files in /sdcard/Android/data/whitestone8214.frontend.minif/files/catalogue

@@ -1,6 +1,6 @@
 # Mini F
 Tiny F-Droid client\
-Version 2.0
+Version 3.0
 
 ## How to build
 

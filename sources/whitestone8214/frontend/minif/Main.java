@@ -2,6 +2,8 @@ package whitestone8214.frontend.minif;
 
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -29,6 +31,22 @@ import java.util.zip.ZipFile;
 
 
 public class Main extends Activity {
+	class Button2 extends Button {
+		public int index; public Button2 index(int value) {index = value; return this;}
+		public String comment; public Button2 comment(String value) {comment = value; return this;}
+		
+		public Button2(Context context) {
+			super(context);
+			index = 0;
+			comment = null;
+		}
+		public Button2(Context context, String label, View.OnClickListener triggerTap, View.OnLongClickListener triggerHold) {
+			this(context);
+			if (label != null) setText(label);
+			if (triggerTap != null) setOnClickListener(triggerTap);
+			if (triggerHold != null) setOnLongClickListener(triggerHold);
+		}
+	}
 	class Profile {
 		public int index; public Profile index(int value) {index = value; return this;}
 		public String comment; public Profile comment(String value) {comment = value; return this;}
@@ -42,36 +60,7 @@ public class Main extends Activity {
 		public String source; public Profile source(String value) {source = value; return this;}
 		public String license; public Profile license(String value) {license = value; return this;}
 		
-		public Profile() {
-			/*index = 0;
-			comment = null;
-			name = null;
-			id = null;
-			author = null;
-			contact = null;
-			summary = null;
-			version = null;
-			model = null;
-			source = null;
-			license = null;*/
-			
-			clean();
-		}
-		
-		/*public Profile copy() {
-			return new Profile().
-				index(index).
-				comment((comment != null) ? new String(comment) : null).
-				name((name != null) ? new String(name) : null).
-				id((id != null) ? new String(id) : null).
-				author((author != null) ? new String(author) : null).
-				contact((contact != null) ? new String(contact) : null).
-				summary((summary != null) ? new String(summary) : null).
-				version((version != null) ? new String(version) : null).
-				model((model != null) ? new String(model) : null).
-				source((source != null) ? new String(source) : null).
-				license((license != null) ? new String(license) : null);
-		}*/
+		public Profile() {clean();}
 		
 		public Profile clean() {
 			index = 0;
@@ -96,15 +85,19 @@ public class Main extends Activity {
 	public String[] _permissions;
 	public String _home;
 	public int _nthPageNow;
-	//public ArrayList<Profile> _profiles;
 	public int _from;
+	public int _widthApp;
+	public int _heightApp;
+	public int _spanApp;
+	public int _stateSizeGathered;
 	
 	// Widgets
-	public LinearLayout _overall;
-	public LinearLayout _overall1;
-	public Button _previous, _next;
+	public LinearLayout _boxOverall;
+	public Button2 _previous, _next;
 	public TextView _here;
 	public LinearLayout _roster;
+	public Dialog _dialog;
+	public LinearLayout _boxDialog;
 	
 	
 	// Necessary callback(s)
@@ -131,31 +124,47 @@ public class Main extends Activity {
 		// Which page we are on?
 		_nthPageNow = -1;
 		
-		// List of profiles for each app
-		//_profiles = new ArrayList<Profile>();
-		
 		// 몇 번째 앱부터 보여줄까요?
 		_from = 0;
 		
+		// Size of app window
+		_widthApp = 0;
+		_heightApp = 0;
+		_spanApp = 0; // 가로와 세로 중 더 짧은 쪽의 16분의 1
+		_stateSizeGathered = 0;
+		
 		// Overall
-		_overall = new LinearLayout(_activity);
-		_overall.setOrientation(LinearLayout.VERTICAL);
-		setContentView(_overall);
+		_boxOverall = new LinearLayout(_activity) {
+			@Override public void onSizeChanged(int widthAfter, int heightAfter, int widthBefore, int heightBefore) {
+				if (_stateSizeGathered == 0) {
+					_widthApp = widthAfter;
+					_heightApp = heightAfter;
+					_spanApp = (_widthApp < _heightApp) ? (_widthApp / 16) : (_heightApp / 16);
+					_stateSizeGathered = 1;
+					Toast.makeText(_activity, "WOW", 1).show();
+					
+					app_in();
+				}
+			}
+		};
+		_boxOverall.setOrientation(LinearLayout.VERTICAL);
+		setContentView(_boxOverall);
+	}
+	public void onBackPressed() {
+		finish();
+	}
+	public Dialog onCreateDialog(int id) {return _dialog;}
+	
+	private void app_in() {
+		LinearLayout _boxOverall1 = new LinearLayout(_activity);
+		_boxOverall1.setOrientation(LinearLayout.VERTICAL);
+		setContentView(_boxOverall1);
 		
-		_overall1 = new LinearLayout(_activity);
-		_overall1.setOrientation(LinearLayout.VERTICAL);
-		_overall.addView(_overall1);
-		
-		// "Load" button
-		Button _load = new Button(_activity);
-		_load.setText("Load");
-		_load.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
+		// Header bar = "Load" + "Previous page" + Page counter + "Next page" + "About"
+		LinearLayout _boxHead = new LinearLayout(_activity);
+		_boxOverall1.addView(_boxHead);
+		_boxHead.addView(new Button2(_activity, "Load", new View.OnClickListener() {public void onClick(View _this) {
 			try {
-				// Extract index-v1.json
-				/*String _file = _activity.getExternalFilesDir(null).getPath() + "/index-v1.jar";
-				ZipEntry _file1 = new ZipFile(_file).getEntry("index-v1.json");
-				JsonReader _reader = new JsonReader(new InputStreamReader(new ZipFile(_file).getInputStream(_file1), "UTF-8"));*/
-				
 				// ~/summary, ~/catalogue
 				if (deleteRecursively(_home + "/summary") != true) throw new Exception("Failed to initialize catalogue: #0");
 				if (deleteRecursively(_home + "/catalogue") != true) throw new Exception("Failed to initialize catalogue: #1");
@@ -180,9 +189,7 @@ public class Main extends Activity {
 				int _nthPage = 0;
 				while (_json != null) {
 					_type = _json.peek().name();
-					//Log.e("MiniF", "CRAWL MET " + _type);
 					if (_type.compareTo("END_DOCUMENT") == 0) {
-						//Log.e("MiniF", "CRAWL " + _type);
 						if (_nApps >= 1) break;
 					}
 					else if (_type.compareTo("NAME") == 0) {
@@ -191,11 +198,8 @@ public class Main extends Activity {
 					else if (_type.compareTo("STRING") == 0) {
 						String _value = _json.nextString();
 						String _key0 = (_key != null) ? _key : "NOKEY";
-						//Log.e("MiniF", "CRAWL " + _indent + " " + ((_key != null) ? (_key + " = ") : "unnamed ") + _value);
-						//Log.e("MiniF", "A " + _indent + " " + _indentForApps + " " + _key0 + " " + _value);
 						
 						if (_indent == _indentForApps + 1) {
-						//if ((_state == 3) && (_key != null)) {
 							if (_key0.compareTo("authorName") == 0) _profile.author = new String(_value);
 							else if (_key0.compareTo("authorEmail") == 0) _profile.contact = new String(_value);
 							else if (_key0.compareTo("packageName") == 0) _profile.id = new String(_value);
@@ -203,25 +207,20 @@ public class Main extends Activity {
 							else if (_key0.compareTo("suggestedVersionCode") == 0) _profile.model = new String(_value);
 							else if (_key0.compareTo("sourceCode") == 0) _profile.source = new String(_value);
 							else if (_key0.compareTo("license") == 0) _profile.license = new String(_value);
-							//Log.e("MiniF", "CRAWL #" + _nApps + " " + ((_key != null) ? (_key + " = ") : "unnamed ") + _value);
 						}
-						//else if ((_state == 5) && (_key != null)) {
 						else if ((_indent == _indentForApps + 3) && (_english == true)) {
 							if (_key0.compareTo("name") == 0) _profile.name = new String(_value);
 							else if (_key0.compareTo("summary") == 0) _profile.summary = new String(_value).replace('\n', ' ');
-							//Log.e("MiniF", "CRAWL #" + _nApps + " " + ((_key != null) ? (_key + " = ") : "unnamed ") + _value);
 						}
 						
 						_key = null;
 					}
 					else if (_type.compareTo("NUMBER") == 0) {
 						double _value = _json.nextDouble();
-						//Log.e("MiniF", "CRAWL " + ((_key != null) ? (_key + " = ") : "unnamed ") + new Double(_value).toString());
 						
 						_key = null;
 					}
 					else if (_type.compareTo("BEGIN_ARRAY") == 0) {
-						//Log.e("MiniF", "CRAWL " + ((_key != null) ? (_key + " = [") : "unnamed ["));
 						_json.beginArray();
 						_indent++;
 						String _key0 = (_key != null) ? _key : "NOKEY";
@@ -231,17 +230,10 @@ public class Main extends Activity {
 						_key = null;
 					}
 					else if (_type.compareTo("BEGIN_OBJECT") == 0) {
-						//Log.e("MiniF", "CRAWL " + ((_key != null) ? (_key + " = {") : "unnamed {"));
 						_json.beginObject();
 						_indent++;
 						String _key0 = (_key != null) ? _key : "NOKEY";
 						
-						//if ((_state == 1) && (_indent == _indentForApps + 1)) {
-						/*if (_indent == _indentForApps + 2) {
-							Log.e("MiniF", "CRAWL ENTER_APP");
-							_state = 2;
-						}*/
-						//else if ((_state == 2) && (_key != null) && (_key.compareTo("localized") == 0)) {
 						if ((_indent == _indentForApps + 2) && (_key0.compareTo("localized") == 0)) {
 							_indentForLocalized = _indent;
 						}
@@ -252,35 +244,26 @@ public class Main extends Activity {
 						_key = null;
 					}
 					else if (_type.compareTo("END_ARRAY") == 0) {
-						//Log.e("MiniF", "CRAWL ]");
 						_json.endArray();
 						_indent--;
 						
-						//if ((_state == 1) && (_indent == _indentForApps - 1)) {
-						/*if (_state == 1) {
-							_state = 0;
-						}*/
 						if (_indent == _indentForApps - 1) {
 							_indentForApps = -99;
 							break;
 						}
 					}
 					else if (_type.compareTo("END_OBJECT") == 0) {
-						//Log.e("MiniF", "CRAWL }");
 						_json.endObject();
 						_indent--;
 						
-						//if ((_state == 2) && (_indent == _indentForApps)) {
 						if ((_indent == _indentForLocalized) && (_english == true)) {
 							_english = false;
 						}
 						else if (_indent == _indentForLocalized - 1) {
 							_indentForLocalized = -99;
 						}
-						//else if (_state == 2) {
 						else if (_indent == _indentForApps) {
 							Log.e("MiniF", "CRAWL LEAVE_APP");
-							//_state = 1;
 							
 							writeOnFile(_home + "/catalogue/" + new Integer(_nthPage).toString(), ((_profile.name != null) ? _profile.name : "?") + "\n");
 							writeOnFile(_home + "/catalogue/" + new Integer(_nthPage).toString(), ((_profile.summary != null) ? _profile.summary : "?") + "\n");
@@ -297,15 +280,8 @@ public class Main extends Activity {
 							if (_nApps % 100 == 0) _nthPage++;
 							_profile.clean();
 						}
-						/*else if (_state == 3) {
-							_state = 2;
-						}
-						else if (_state == 4) {
-							_state = 3;
-						}*/
 					}
 					else {
-						//Log.e("MiniF", "CRAWL " + _type);
 						_json.skipValue();
 					}
 				}
@@ -318,265 +294,10 @@ public class Main extends Activity {
 				
 				// Click "Next" = Load next page = Load first page
 				_next.performClick();
-				
-				//_roster.removeAllViews();
-				/*int _indent = 0;
-				String _key = null;
-				int _inList = -1;
-				int _oneApp = -1;
-				int _localized = -1;
-				int _english = -1;
-				String _name = null;
-				Profile _profile = new Profile();
-				while (_file != null) {
-					//String _type = _reader.peek().name();
-					String _type = _json.peek().name();
-					String _text = "";
-					
-					if (_type.compareTo("BEGIN_OBJECT") == 0) {
-						if ((_inList >= 0) && (_indent == _inList + 1)) {
-							_oneApp = _indent;
-						}
-						else if (_key != null) {
-							if (_key.compareTo("localized") == 0) {
-								if (_oneApp >= 0) _localized = _indent;
-							}
-							else if (_key.compareTo("en-US") == 0) {
-								if (_localized >= 0) _english = _indent;
-							}
-						}
-						
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _key + " = {";
-						_indent++;
-						
-						_json.beginObject();
-					}
-					else if (_type.compareTo("END_OBJECT") == 0) {
-						_indent--;
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + "}";
-						
-						if (_oneApp == _indent) {
-							_oneApp = -1;
-							
-							_profiles.add(_profile.copy());
-							_profile = new Profile();
-							
-							_roster.removeAllViews();
-							for (int _n = _from; _n < _from + 100; _n++) {
-								if (_n >= _profiles.size()) break;
-								final Profile _app = _profiles.get(_n);
-								
-								if (_n > _from) {
-									TextView _item1 = new TextView(_activity);
-									_item1.setText("===== ===== ===== ===== =====");
-									_roster.addView(_item1);
-								}
-								
-								TextView _item = new TextView(_activity);
-								_item.setText("Name: " + _app.name + "\nAuthor: " + _app.author + "\nContact: " + _app.contact + "\nSummary: " + _app.summary + "\nVersion: " + _app.version + "\nSource code: " + _app.source + "\nLicense: " + _app.license);
-								_roster.addView(_item);
-								
-								TextView _site = new TextView(_activity);
-								_site.setText("Official source code");
-								_site.setTextSize(_site.getTextSize() * 1.0625f);
-								_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-									Intent _order = new Intent(Intent.ACTION_VIEW);
-									_order.setData(Uri.parse(_app.source));
-									_activity.startActivity(_order);
-								}});
-								_roster.addView(_site);
-								
-								TextView _apk = new TextView(_activity);
-								_apk.setText("Download latest APK");
-								_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-								_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-									Intent _order = new Intent(Intent.ACTION_VIEW);
-									_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + ".apk"));
-									_activity.startActivity(_order);
-								}});
-								_roster.addView(_apk);
-								
-								TextView _tar = new TextView(_activity);
-								_tar.setText("Download latest source tarball");
-								_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-								_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-									Intent _order = new Intent(Intent.ACTION_VIEW);
-									_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + "_src.tar.gz"));
-									_activity.startActivity(_order);
-								}});
-								_roster.addView(_tar);
-							}
-							_roster.scrollTo(0, 0);
-							
-							_here.setText(new Integer(_from).toString() + " ~ " + new Integer(_from + 99).toString() + " / " + new Integer(_profiles.size()).toString());
-						}
-						else if (_localized == _indent) _localized = -1;
-						else if (_english == _indent) _english = -1;
-						
-						_json.endObject();
-						_key = null;
-					}
-					else if (_type.compareTo("BEGIN_ARRAY") == 0) {
-						//Log.e("MiniF", "ARRAY_N_MEMBERS " + new Integer(_json.peek().values().length).toString() + " " + _text);
-						
-						if (_key.compareTo("apps") == 0) {
-							if (_inList == -1) _inList = _indent;
-						}
-						
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _key + " = [";
-						_indent++;
-						
-						_json.beginArray();
-					}
-					else if (_type.compareTo("END_ARRAY") == 0) {
-						_indent--;
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + "]";
-						
-						if (_inList == _indent) _inList = -1;
-						
-						_json.endArray();
-						_key = null;
-					}
-					else if (_type.compareTo("NAME") == 0) {
-						_key = _json.nextName();
-					}
-					else if (_type.compareTo("BOOLEAN") == 0) {
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _key + " = " + ((_json.nextBoolean() == true) ? "true" : "false");
-						
-						_key = null;
-					}
-					else if (_type.compareTo("NUMBER") == 0) {
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _key + " = " + new Double(_json.nextDouble()).toString();
-						
-						_key = null;
-					}
-					else if (_type.compareTo("STRING") == 0) {
-						String _value = _json.nextString();
-						if (_english >= 0) {
-							if (_key != null) {
-								if (_key.compareTo("name") == 0) _profile.name = new String(_value);
-								else if (_key.compareTo("summary") == 0) _profile.summary = _value;
-							}
-						}
-						else if (_oneApp >= 0) {
-							if (_key != null) {
-								if (_key.compareTo("authorName") == 0) _profile.author = new String(_value);
-								else if (_key.compareTo("authorEmail") == 0) _profile.contact = new String(_value);
-								else if (_key.compareTo("packageName") == 0) _profile.id = new String(_value);
-								else if (_key.compareTo("suggestedVersionCode") == 0) _profile.model = new String(_value);
-								else if (_key.compareTo("suggestedVersionName") == 0) _profile.version = new String(_value);
-								else if (_key.compareTo("sourceCode") == 0) {
-									Log.e("MiniF", "SAUCE! " + _value);
-									_profile.source = new String(_value);
-								}
-								else if (_key.compareTo("license") == 0) _profile.license = new String(_value);
-							}
-						}
-						
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _key + " = " + _value;
-						
-						_key = null;
-					}
-					else if (_type.compareTo("END_DOCUMENT") == 0) {
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _type;
-						
-						break;
-					}
-					else {
-						for (int _n = 0; _n < _indent; _n++) _text = "\t" + _text;
-						_text = _text + _type;
-						
-						_json.skipValue();
-					}
-				}*/
-				//_json.close();
-				
-				/*Toast.makeText(_activity, "Total " + new Integer(_profiles.size()).toString() + " app(s)", 1).show();
-				_roster.removeAllViews();
-				for (Profile _profile1 : _profiles) {
-					TextView _item = new TextView(_activity);
-					_item.setText("Name: " + _profile1.name + "\nAuthor: " + _profile1.author + "\nContact: " + _profile1.contact + "\nSummary: " + _profile1.summary + "\nVersion: " + _profile1.version + "\nSource code: " + _profile1.source + "\nLicense: " + _profile1.license);
-					_roster.addView(_item);
-					
-					final Profile _profile11 = _profile1;
-					
-					TextView _site = new TextView(_activity);
-					_site.setText("Official source code");
-					_site.setTextSize(_site.getTextSize() * 1.0625f);
-					_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-						Intent _order = new Intent(Intent.ACTION_VIEW);
-						_order.setData(Uri.parse(_profile11.source));
-						_activity.startActivity(_order);
-					}});
-					_roster.addView(_site);
-					
-					TextView _apk = new TextView(_activity);
-					_apk.setText("Download latest APK");
-					_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-					_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-						Intent _order = new Intent(Intent.ACTION_VIEW);
-						_order.setData(Uri.parse("https://f-droid.org/repo/" + _profile11.id + "_" + _profile11.model + ".apk"));
-						_activity.startActivity(_order);
-					}});
-					_roster.addView(_apk);
-					
-					TextView _tar = new TextView(_activity);
-					_tar.setText("Download latest source tarball");
-					_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-					_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-						Intent _order = new Intent(Intent.ACTION_VIEW);
-						_order.setData(Uri.parse("https://f-droid.org/repo/" + _profile11.id + "_" + _profile11.model + "_src.tar.gz"));
-						_activity.startActivity(_order);
-					}});
-					_roster.addView(_tar);
-					
-					TextView _item1 = new TextView(_activity);
-					_item1.setText("===== ===== ===== ===== =====");
-					_roster.addView(_item1);
-				}
-				_roster.scrollTo(0, 0);*/
 			}
 			catch(Exception x) {x.printStackTrace();}
-		}});
-		_overall1.addView(_load);
-		
-		Button _about = new Button(_activity);
-		_about.setText("About");
-		_about.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-			_roster.removeAllViews();
-			
-			TextView _about1 = new TextView(_activity);
-			_about1.setText("Name: Mini F\nAuthor: Minho Jo (whitestone8214@gmail.com)\nVersion: 0.0\nLicense: GNU GPL v3 or later");
-			_roster.addView(_about1);
-			
-			TextView _site = new TextView(_activity);
-			_site.setText("Official source code");
-			_site.setTextSize(_site.getTextSize() * 1.0625f);
-			_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-				Intent _order = new Intent(Intent.ACTION_VIEW);
-				_order.setData(Uri.parse("https://gitlab.com/whitestone8214/MiniF"));
-				_activity.startActivity(_order);
-			}});
-			_roster.addView(_site);
-			
-			_roster.scrollTo(0, 0);
-		}});
-		_overall1.addView(_about);
-		
-		LinearLayout _overall2 = new LinearLayout(_activity);
-		_overall1.addView(_overall2);
-		
-		_previous = new Button(_activity);
-		_previous.setText("Previous 100");
-		_previous.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
+		}}, null));
+		_boxHead.addView(new Button2(_activity, "-100", new View.OnClickListener() {public void onClick(View _this) {
 			// Keep _nthPageNow from being less than 0
 			if (_nthPageNow <= 0) _nthPageNow = 0;
 			else _nthPageNow--;
@@ -636,41 +357,41 @@ public class Main extends Activity {
 						_1.setText("Name: " + new String(_slots0[0]) + "\nAuthor: " + new String(_slots0[2]) + "\nContact: " + new String(_slots0[3]) + "\nSummary: " + new String(_slots0[1]) + "\nVersion: " + new String(_slots0[7]) + "\nSource code: " + new String(_slots0[4]) + "\nLicense: " + new String(_slots0[5]));
 						_roster.addView(_1);
 						
-						TextView _site = new TextView(_activity);
-						_site.setText("Official source code");
-						_site.setTextSize(_site.getTextSize() * 1.0625f);
-						_site.setTag((Object)new String(_slots0[4]));
-						_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_site);
-						
-						TextView _apk = new TextView(_activity);
-						_apk.setText("Download latest APK");
-						_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-						_apk.setTag((Object)("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + ".apk"));
-						_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_apk);
-						
-						TextView _tar = new TextView(_activity);
-						_tar.setText("Download latest source tarball");
-						_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-						_tar.setTag((Object)("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + "_src.tar.gz"));
-						_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_tar);
+						LinearLayout _boxRoutes = new LinearLayout(_activity);
+						_roster.addView(_boxRoutes);
+						_boxRoutes.addView(new Button2(_activity, "Site",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment(_slots0[4]));
+						_boxRoutes.addView(new Button2(_activity, "APK",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + ".apk"));
+						_boxRoutes.addView(new Button2(_activity, "Source code",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + "_src.tar.gz"));
 					}
 					
 					_byte = _stream.read();
@@ -681,64 +402,9 @@ public class Main extends Activity {
 				_here.setText(new Integer(_nthPageNow * 100).toString() + " ~ " + new Integer((_nthPageNow * 100) + 99).toString() + " / " + _nApps0);
 			}
 			catch(Exception x) {x.printStackTrace();}
-			
-			/*_from -= 100;
-			if (_from < 0) _from = 0;
-			
-			_roster.removeAllViews();
-			_roster.scrollTo(0, 0);
-			for (int _n = _from; _n < _from + 100; _n++) {
-				if (_n >= _profiles.size()) break;
-				final Profile _app = _profiles.get(_n);
-				
-				if (_n > _from) {
-					TextView _item1 = new TextView(_activity);
-					_item1.setText("===== ===== ===== ===== =====");
-					_roster.addView(_item1);
-				}
-				
-				TextView _item = new TextView(_activity);
-				_item.setText("Name: " + _app.name + "\nAuthor: " + _app.author + "\nContact: " + _app.contact + "\nSummary: " + _app.summary + "\nVersion: " + _app.version + "\nSource code: " + _app.source + "\nLicense: " + _app.license);
-				_roster.addView(_item);
-				
-				TextView _site = new TextView(_activity);
-				_site.setText("Official source code");
-				_site.setTextSize(_site.getTextSize() * 1.0625f);
-				_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse(_app.source));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_site);
-				
-				TextView _apk = new TextView(_activity);
-				_apk.setText("Download latest APK");
-				_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-				_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + ".apk"));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_apk);
-				
-				TextView _tar = new TextView(_activity);
-				_tar.setText("Download latest source tarball");
-				_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-				_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + "_src.tar.gz"));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_tar);
-			}
-			
-			_here.setText(new Integer(_from).toString() + " ~ " + new Integer(_from + 99).toString() + " / " + new Integer(_profiles.size()).toString());*/
-		}});
-		_overall2.addView(_previous);
-		
-		_next = new Button(_activity);
-		_next.setText("Next 100");
-		_next.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
+		}}, null));
+		_boxHead.addView(new TextView(_activity));
+		_boxHead.addView(new Button2(_activity, "+100", new View.OnClickListener() {public void onClick(View _this) {
 			if (new File(_home + "/catalogue/" + new Integer(_nthPageNow + 1).toString()).exists() != true) return;
 			_nthPageNow++;
 			
@@ -798,41 +464,41 @@ public class Main extends Activity {
 						_1.setText("Name: " + new String(_slots0[0]) + "\nAuthor: " + new String(_slots0[2]) + "\nContact: " + new String(_slots0[3]) + "\nSummary: " + new String(_slots0[1]) + "\nVersion: " + new String(_slots0[7]) + "\nSource code: " + new String(_slots0[4]) + "\nLicense: " + new String(_slots0[5]));
 						_roster.addView(_1);
 						
-						TextView _site = new TextView(_activity);
-						_site.setText("Official source code");
-						_site.setTextSize(_site.getTextSize() * 1.0625f);
-						_site.setTag((Object)new String(_slots0[4]));
-						_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_site);
-						
-						TextView _apk = new TextView(_activity);
-						_apk.setText("Download latest APK");
-						_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-						_apk.setTag((Object)("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + ".apk"));
-						_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_apk);
-						
-						TextView _tar = new TextView(_activity);
-						_tar.setText("Download latest source tarball");
-						_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-						_tar.setTag((Object)("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + "_src.tar.gz"));
-						_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-							//Toast.makeText(_activity, (String)_this.getTag(), 1).show();
-							Intent _order = new Intent(Intent.ACTION_VIEW);
-							_order.setData(Uri.parse((String)_this.getTag()));
-							_activity.startActivity(_order);
-						}});
-						_roster.addView(_tar);
+						LinearLayout _boxRoutes = new LinearLayout(_activity);
+						_roster.addView(_boxRoutes);
+						_boxRoutes.addView(new Button2(_activity, "Site",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment(_slots0[4]));
+						_boxRoutes.addView(new Button2(_activity, "APK",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + ".apk"));
+						_boxRoutes.addView(new Button2(_activity, "Source code",
+							new View.OnClickListener() {public void onClick(View _this) {
+								Intent _order = new Intent(Intent.ACTION_VIEW);
+								_order.setData(Uri.parse(((Button2)_this).comment));
+								_activity.startActivity(_order);
+							}},
+							new View.OnLongClickListener() {public boolean onLongClick(View _this) {
+								Toast.makeText(_activity, ((Button2)_this).comment, 1).show();
+								return true;
+							}}
+						).comment("https://f-droid.org/repo/" + new String(_slots0[6]) + "_" + new String(_slots0[8]) + "_src.tar.gz"));
 					}
 					
 					_byte = _stream.read();
@@ -843,75 +509,48 @@ public class Main extends Activity {
 				_here.setText(new Integer(_nthPageNow * 100).toString() + " ~ " + new Integer((_nthPageNow * 100) + 99).toString() + " / " + _nApps0);
 			}
 			catch(Exception x) {x.printStackTrace();}
+		}}, null));
+		_boxHead.addView(new Button2(_activity, "About", new View.OnClickListener() {public void onClick(View _this) {
+			removeDialog(0);
+			_boxDialog.removeAllViews();
 			
-			/*if (_from + 100 >= _profiles.size()) return;
-			_from += 100;
+			TextView _about1 = new TextView(_activity);
+			_about1.setText("Name: Mini F\nAuthor: Minho Jo (whitestone8214@gmail.com)\nVersion: 0.0\nLicense: GNU GPL v3 or later");
+			_boxDialog.addView(_about1);
 			
-			_roster.removeAllViews();
-			_roster.scrollTo(0, 0);
-			for (int _n = _from; _n < _from + 100; _n++) {
-				if (_n >= _profiles.size()) break;
-				final Profile _app = _profiles.get(_n);
-				
-				if (_n > _from) {
-					TextView _item1 = new TextView(_activity);
-					_item1.setText("===== ===== ===== ===== =====");
-					_roster.addView(_item1);
-				}
-				
-				TextView _item = new TextView(_activity);
-				_item.setText("Name: " + _app.name + "\nAuthor: " + _app.author + "\nContact: " + _app.contact + "\nSummary: " + _app.summary + "\nVersion: " + _app.version + "\nSource code: " + _app.source + "\nLicense: " + _app.license);
-				//_item.setText("Name: " + _name + "\nSummary: " + _summary + "\nVersion: " + _version + "\nSource code: " + _siteForSelectedApp + "\nLicense: " + _license);
-				_roster.addView(_item);
-				
-				TextView _site = new TextView(_activity);
-				_site.setText("Official source code");
-				_site.setTextSize(_site.getTextSize() * 1.0625f);
-				_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse(_app.source));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_site);
-				
-				TextView _apk = new TextView(_activity);
-				_apk.setText("Download latest APK");
-				_apk.setTextSize(_apk.getTextSize() * 1.0625f);
-				_apk.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + ".apk"));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_apk);
-				
-				TextView _tar = new TextView(_activity);
-				_tar.setText("Download latest source tarball");
-				_tar.setTextSize(_tar.getTextSize() * 1.0625f);
-				_tar.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
-					Intent _order = new Intent(Intent.ACTION_VIEW);
-					_order.setData(Uri.parse("https://f-droid.org/repo/" + _app.id + "_" + _app.model + "_src.tar.gz"));
-					_activity.startActivity(_order);
-				}});
-				_roster.addView(_tar);
-			}
+			TextView _site = new TextView(_activity);
+			_site.setText("Official source code");
+			_site.setTextSize(_site.getTextSize() * 1.0625f);
+			_site.setOnClickListener(new View.OnClickListener() {public void onClick(View _this) {
+				Intent _order = new Intent(Intent.ACTION_VIEW);
+				_order.setData(Uri.parse("https://gitlab.com/whitestone8214/MiniF"));
+				_activity.startActivity(_order);
+			}});
+			_boxDialog.addView(_site);
 			
-			_here.setText(new Integer(_from).toString() + " ~ " + new Integer(_from + 99).toString() + " / " + new Integer(_profiles.size()).toString());*/
-		}});
-		_overall2.addView(_next);
+			_boxDialog.addView(new Button2(_activity, "Understood", new View.OnClickListener() {public void onClick(View _this) {
+				removeDialog(0);
+			}}, null));
+			
+			showDialog(0);
+		}}, null));
 		
-		_here = new TextView(_activity);
+		_here = (TextView)_boxHead.getChildAt(2);
 		_here.setText("? of ?");
-		_overall2.addView(_here);
 		
 		// Box for apps
 		ScrollView _0 = new ScrollView(_activity);
-		_overall1.addView(_0);
+		_boxOverall1.addView(_0);
 		_roster = new LinearLayout(_activity);
 		_roster.setOrientation(LinearLayout.VERTICAL);
 		_0.addView(_roster);
-	}
-	public void onBackPressed() {
-		finish();
+		
+		// Dialog
+		_dialog = new Dialog(_activity);
+		_dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+		_boxDialog = new LinearLayout(_activity);
+		_boxDialog.setOrientation(LinearLayout.VERTICAL);
+		_dialog.setContentView(_boxDialog);
 	}
 	
 	private boolean deleteRecursively(String path) {
